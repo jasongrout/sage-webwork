@@ -1,0 +1,53 @@
+## Template for calling Sage from within a WebWork pg file
+
+## BEGIN_DESCRIPTION
+## Sample problem embedding Sage in WW
+## END_DESCRIPTION
+
+DOCUMENT();
+
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+);
+
+###############################################
+##
+##  pg initializations and regular WeBWorK code
+
+
+Context("Matrix");
+Context()->variables->add(u => 'Real');
+Context()->variables->add(v => 'Real');
+
+$SageCode1=<<END;
+def ff():
+    return choice([sin,cos,exp,ln,lambda x: x])
+def combination(*args):
+    return prod([choice(i) for i in args])
+u,v=var('u v')
+def simple_expression():
+    return combination(range(1,10),[u,u^2],[v,v^2])
+def random_expression():
+    return ff()(simple_expression())+ff()(simple_expression())
+f(u,v)=(random_expression(),random_expression(),simple_expression())
+WEBWORK['function']=f(u,v)
+WEBWORK['diff']=f.diff()(u,v)
+END
+
+# accepted_tos=>true indicates that you agree to the terms of service:
+# https://sagecell.sagemath.org/tos.html
+$reply = AskSage($SageCode1,{seed=>$problemSeed, accepted_tos=>true});
+$F = Formula($reply->{function});
+$ans = Matrix($reply->{diff});
+
+Context()->texStrings;
+BEGIN_TEXT
+Find the total derivative \(Df\) of \[f(u,v)={$F}\]
+\{ $ans->ans_array(50)\}
+END_TEXT
+Context()->normalStrings;
+ANS($ans->cmp());
+ENDDOCUMENT();
+

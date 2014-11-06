@@ -1,0 +1,83 @@
+## Template for calling Sage from within a WebWork pg file
+
+## BEGIN_DESCRIPTION
+## Sample problem embedding Sage in WW
+## END_DESCRIPTION
+
+DOCUMENT();
+
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+);
+
+###############################################
+##
+##  pg initializations and regular WeBWorK code
+
+
+Context("Matrix");
+Context()->variables->add(u => 'Real');
+Context()->variables->add(v => 'Real');
+Context()->variables->add(t => 'Real');
+
+$SageCode1=<<END;
+def func(arg):
+    f = choice([sin,cos])
+    return f(arg)
+def term(*vars):
+    varchoices = [[v^k for k in range(3)] for v in vars]
+    varchoices.append(range(1,4)+range(-4,0))
+    return prod(choice(i) for i in varchoices)
+
+h(t) = (term(t), term(t), term(t))
+g(x,y,z) = (term(y,z), term(x,z)+term(x,y))
+f(u,v) = (func(term(u,v)), term(u,v)+term(u,v), term(u,v))
+compose(t) = list(f(*g(*h(t))))
+WEBWORK['f']=f(u,v)
+WEBWORK['fdiff']=f.diff()(u,v)
+WEBWORK['g']=g(x,y,z)
+WEBWORK['gdiff']=g.diff()(x,y,z)
+WEBWORK['h']=h(t)
+WEBWORK['hdiff']=h.diff()(t)
+WEBWORK['composediff'] = compose.diff()(t=1.).n()
+END
+
+# accepted_tos=>true indicates that you agree to the terms of service:
+# https://sagecell.sagemath.org/tos.html
+$reply = AskSage($SageCode1,{seed=>$problemSeed, accepted_tos=>true,debug=>0});
+$f = Formula($reply->{f});
+$g = Formula($reply->{g});
+$h = Formula($reply->{h});
+$fdiff = Matrix($reply->{fdiff});
+$gdiff = Matrix($reply->{gdiff});
+$hdiff = Matrix($reply->{hdiff});
+$ans = Matrix($reply->{composediff});
+
+Context()->texStrings;
+BEGIN_TEXT
+Let \(f(u,v)=$f\), \(g(x,y,z)=$g\), and \(h(t)=$h\).  
+
+$BR$BR
+
+\(Df(u,v)=\)\{ $fdiff->ans_array(30)\}
+
+$BR$BR
+
+\(Dg(x,y,z)=\)\{ $gdiff->ans_array(30)\}
+$BR$BR
+\(Dh(t)=\)\{ $hdiff->ans_array(30)\}
+$BR$BR
+Let \(\vec M(t)=f(g(h(t)))\).  Use the chain rule to find \(D\vec M\) at \(t=1\).
+$BR
+\(D\vec M(1)=\)\{ $ans->ans_array(20)\}
+
+END_TEXT
+
+Context()->normalStrings;
+ANS($fdiff->cmp());
+ANS($gdiff->cmp());
+ANS($hdiff->cmp());
+ANS($ans->cmp());
+ENDDOCUMENT();

@@ -1,0 +1,78 @@
+## Template for calling Sage from within a WebWork pg file
+
+## BEGIN_DESCRIPTION
+## Sample problem embedding Sage in WW
+## END_DESCRIPTION
+
+DOCUMENT();
+
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+"sage.pl"
+);
+
+###############################################
+##
+##  pg initializations and regular WeBWorK code
+
+
+Context("Matrix");
+Context()->variables->add(u => 'Real');
+Context()->variables->add(v => 'Real');
+
+$SageCode1=<<END;
+def func(arg):
+    f = choice([sin,cos])
+    return f(arg)
+def term(*vars):
+    varchoices = [[v^k for k in range(1,3)] for v in vars]
+    varchoices.append(range(1,10))
+    return prod(choice(i) for i in varchoices)
+
+r(u,v) = (func(term(u,v)), func(term(u,v)), func(term(v)))
+WEBWORK={}
+WEBWORK['r']=r(u,v)
+WEBWORK['rdiff']=r.diff()(2,1).column(1)
+END
+
+# accepted_tos=>true indicates that you agree to the terms of service:
+# https://sagecell.sagemath.org/tos.html
+$reply = AskSage($SageCode1,{seed=>$problemSeed, accepted_tos=>true});
+$r = Formula($reply->{r});
+$rdiff = Vector($reply->{rdiff});
+
+$SageCode = <<SAGE_CODE;
+# Click the button to see the graph in this problem
+r(u,v)= $r
+du,dv=.2,.2
+print "r(u,v) for %.1f<=u<=%.1f and %.1f<=v<=%.1f.  Red point is at r(2,1)"%(2-du,2+du,1-dv,1+dv)
+parametric_plot(r,(u,2-du,2+du),(v,1-dv,1+dv),opacity=0.8) + point(r(2,1),color='red',size=30)
+SAGE_CODE
+
+
+Context()->texStrings;
+BEGIN_TEXT
+Let \(r(u,v)=$r\).  Suppose I'm at the point \((x,y,z)=r(2,1)\).  What direction should I go on the surface to increase \(v\), but keep \(u\) constant? A direction vector for my motion is \{$rdiff->ans_array\}.
+
+$BR
+$BR
+<!--
+Ignore this: \{
+Sage(
+    SageCode=>$SageCode,
+    ButtonText => 'Click to see graph',
+    AutoEvaluateCell => 0,
+    AnswerReturn => 0,
+    MinimalTemplate=>0,
+);
+\}
+-->
+
+END_TEXT
+
+
+Context()->normalStrings;
+ANS($rdiff->cmp(parallel => 1, sameDirection => 1));
+ENDDOCUMENT();

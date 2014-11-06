@@ -1,0 +1,51 @@
+## Template for calling Sage from within a WebWork pg file
+
+## BEGIN_DESCRIPTION
+## Sample problem embedding Sage in WW
+## END_DESCRIPTION
+
+DOCUMENT();
+
+
+loadMacros(
+  "PGstandard.pl",
+  "MathObjects.pl",
+);
+
+
+###############################################
+##
+##  pg initializations and regular WeBWorK code
+
+
+Context("Matrix");
+
+my $rows = random(3,4);
+my $columns = random(4,5);
+my $rank = random(2,3);
+
+$SageCode1=<<END;
+print random_matrix(QQ,$rows,$columns,algorithm='echelonizable',rank=$rank).rows()
+END
+
+
+$SageCode2 =<<END;
+print matrix(QQ,$sageReply1).rref().rows()
+END
+
+$sageReply1 = AskSage($SageCode1,{seed=>$problemSeed, accepted_tos=>true});
+$M = Matrix($sageReply);
+
+$sageReply2 = AskSage($SageCode2, {accepted_tos=>true});
+$ans = Matrix($sageReply2);
+
+
+Context()->texStrings;
+BEGIN_TEXT
+
+Row reduce \( $M \) $BR
+\{ $ans->ans_array\}
+END_TEXT
+Context()->normalStrings;
+ANS($ans->cmp());
+ENDDOCUMENT();
